@@ -10,10 +10,10 @@
 
 // ---- Static IP (must be outside your router's DHCP pool, or reserved for
 //      this device) — skipping DHCP saves 0.5-2 s on every boot ----
-const IPAddress STATIC_IP(10, 65, 35, 60);
-const IPAddress GATEWAY(10, 65, 35, 254);
+const IPAddress STATIC_IP(192, 168, 1, 60);
+const IPAddress GATEWAY(192, 168, 1, 1);
 const IPAddress SUBNET(255, 255, 255, 0);
-const IPAddress DNS_SERVER(10, 65, 35, 254);
+const IPAddress DNS_SERVER(192, 168, 1, 1);
 
 // How long to trust the cached channel/BSSID before falling back to a full
 // scan (covers the case where the router changed channel or was replaced).

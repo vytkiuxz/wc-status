@@ -3,3 +3,6 @@
 
 # Contains the real WiFi credentials — copy config.example.h to config.h locally
 wc_status/config.h
+
+# Local deployment values (e.g. WC_DEVICE=<sensor ip>)
+.env
