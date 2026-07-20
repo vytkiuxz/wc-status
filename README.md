@@ -59,17 +59,21 @@ timer (from the sensor's uptime), green 🚪 "Free!" with confetti on the
 occupied→free transition, plus a sensor-online indicator and the tab
 title/emoji updating so you can pin the tab and see the status at a glance.
 
-Open it straight from disk (double-click) or host it on any **plain-http**
-server on the office network. Don't serve it over https — browsers block a
-https page from calling the sensor's http endpoint (mixed content). Two
-consecutive missed polls count as "free", so a single dropped packet doesn't
-flicker the status.
+Open it straight from disk (double-click, polls the sensor directly — LAN
+only) or host it with the Docker stack below, which also works over **https**:
+nginx proxies `/api/status` to the sensor server-side, so the browser only
+ever talks to the page's own origin (no CORS / mixed-content / local-network
+blocking). Two consecutive missed polls count as "free", so a single dropped
+packet doesn't flicker the status.
 
 ### Hosting with Docker / Portainer
 
 [docker-compose.yml](docker-compose.yml) builds a tiny nginx image
-([web/Dockerfile](web/Dockerfile)) that serves the page on port **8080**
-(plain http, which is required — see above).
+([web/Dockerfile](web/Dockerfile)) that serves the page on port **8080** and
+proxies `/api/status` to the sensor (address set via the `WC_DEVICE` env var
+in the compose file). The Docker host must be able to reach the sensor's IP.
+Putting a TLS-terminating reverse proxy in front (e.g. for `https://wc.…`)
+works fine.
 
 Portainer needs the build context (`web/index.html`), not just the compose
 file, so deploy one of these ways:

@@ -152,9 +152,13 @@
   </main>
 
 <script>
-  const DEVICE_URL = "http://10.65.35.60/status";
+  // Served by the nginx container -> same-origin proxy (works over https).
+  // Opened straight from disk -> talk to the sensor directly.
+  const DEVICE_URL = location.protocol === "file:"
+    ? "http://10.65.35.60/status"
+    : "/api/status";
   const POLL_MS = 3000;      // how often to ask the sensor
-  const TIMEOUT_MS = 2000;   // sensor answers in <50 ms when powered; longer = light is off
+  const TIMEOUT_MS = 2800;   // direct: <50 ms when powered; via proxy: 502/504 within ~2 s
   const MISSES_FOR_FREE = 2; // debounce: one dropped packet shouldn't flip the status
 
   const $ = (id) => document.getElementById(id);
@@ -223,6 +227,7 @@
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     try {
       const res = await fetch(DEVICE_URL, { signal: ctrl.signal, cache: "no-store" });
+      if (!res.ok) throw new Error("sensor unreachable (" + res.status + ")"); // proxy 502/504 = light off
       const data = await res.json();
       misses = 0;
       deviceUptimeMs = data.uptime_ms;

@@ -1,0 +1,18 @@
+server {
+    listen 80;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Server-side proxy to the sensor. The browser calls this same-origin
+    # endpoint, so https hosting works (no CORS / mixed-content / local
+    # network access issues). WC_DEVICE comes from docker-compose.yml.
+    location = /api/status {
+        proxy_pass http://${WC_DEVICE}/status;
+        # Sensor answers in <50 ms when powered; if it doesn't connect fast,
+        # the light is off -> fail quickly with 502/504 (page shows "free").
+        proxy_connect_timeout 1s;
+        proxy_read_timeout 2s;
+        add_header Cache-Control no-store;
+    }
+}
