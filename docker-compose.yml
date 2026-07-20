@@ -1,0 +1,15 @@
+services:
+  wc-status-web:
+    build: ./web
+    image: wc-status-web:latest
+    container_name: wc-status-web
+    ports:
+      # Plain http on purpose: an https page can't call the sensor's http
+      # endpoint (mixed content). Change the left side if 8080 is taken.
+      - "8080:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
