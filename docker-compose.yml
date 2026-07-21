@@ -12,6 +12,8 @@ services:
       # or a local .env file) instead of committing it here.
       WC_DEVICE: "${WC_DEVICE:-192.168.1.60}"
     restart: unless-stopped
+    depends_on:
+      - wc-status-push
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost/"]
       interval: 30s
@@ -27,3 +29,22 @@ services:
     # networks:
     #   proxy:
     #     external: true
+
+  # Watches the sensor 24/7 and sends the one-shot "WC is free" Web Push to
+  # subscribers even when nobody has the page open. Generate VAPID keys once
+  # (e.g. `npx web-push generate-vapid-keys`) and provide them via env vars.
+  wc-status-push:
+    build: ./push
+    image: wc-status-push:latest
+    container_name: wc-status-push
+    restart: unless-stopped
+    environment:
+      WC_DEVICE: "${WC_DEVICE:-192.168.1.60}"
+      VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY:-}"
+      VAPID_PRIVATE_KEY: "${VAPID_PRIVATE_KEY:-}"
+      VAPID_SUBJECT: "${VAPID_SUBJECT:-mailto:admin@example.com}"
+    volumes:
+      - push-data:/data
+
+volumes:
+  push-data:

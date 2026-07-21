@@ -4,6 +4,22 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # Service worker must never be cached, or PWA updates get stuck.
+    location = /sw.js {
+        add_header Cache-Control "no-cache";
+    }
+
+    # nginx's default mime.types doesn't know .webmanifest
+    location = /manifest.webmanifest {
+        types { }
+        default_type application/manifest+json;
+    }
+
+    # Web Push subscription API, handled by the wc-status-push container.
+    location /api/push/ {
+        proxy_pass http://wc-status-push:3000;
+    }
+
     # Server-side proxy to the sensor. The browser calls this same-origin
     # endpoint, so https hosting works (no CORS / mixed-content / local
     # network access issues). WC_DEVICE comes from docker-compose.yml.

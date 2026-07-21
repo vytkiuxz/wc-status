@@ -66,14 +66,57 @@ ever talks to the page's own origin (no CORS / mixed-content / local-network
 blocking). Two consecutive missed polls count as "free", so a single dropped
 packet doesn't flicker the status.
 
+### Install as an app (PWA)
+
+The page is an installable PWA (manifest + service worker + icons). From
+`https://wc.sias.lt` use the browser's install option (desktop Chrome/Edge:
+install icon in the address bar; Android Chrome: "Add to Home screen"; iOS
+Safari: Share → "Add to Home Screen").
+
+**Icon badge** — while the installed app is running (a window open or
+minimized), the app icon shows a badge when the WC is occupied and clears it
+when free:
+
+| Platform | Badge support |
+|---|---|
+| Windows / macOS (Chrome or Edge, installed) | ✅ taskbar/dock badge via the App Badging API |
+| iOS / iPadOS 16.4+ (added to Home Screen) | ✅ home-screen badge — tap "Notify me" once to grant notification permission, which unlocks badging |
+| Android (Chrome) | ❌ no App Badging API — use the "🔔 Notify me when it's free" button instead; the notification also puts a dot on the app icon |
+
+The "🔔 Notify me when it's free" button appears whenever the WC is occupied
+(on every platform): tap it and you get a one-shot notification the moment it
+frees up.
+
+**Web Push**: the "🔔 Notify me" button prefers a real push subscription
+(handled by the `wc-status-push` container), which fires **even after you
+close the app or lock your phone** — one ping when the WC frees up, then the
+subscription is cleared (no spam). If the push service is missing or VAPID
+keys aren't configured, the button silently falls back to a local
+notification that only works while the page stays open.
+
+Push requirements: VAPID keys in the stack env (see
+[.env.example](.env.example)), outbound internet from the Docker host (pushes
+are delivered via Google/Apple/Mozilla push services; payloads are
+end-to-end encrypted), and on iOS 16.4+ the app must be added to the Home
+Screen. The live badge (occupied → dot) still only updates while the app is
+running — browsers require every push to show a notification, so silently
+flipping the badge on each light toggle from the server isn't allowed.
+
 ### Hosting with Docker / Portainer
 
-[docker-compose.yml](docker-compose.yml) builds a tiny nginx image
-([web/Dockerfile](web/Dockerfile)) that serves the page on port **8080** and
-proxies `/api/status` to the sensor (address set via the `WC_DEVICE` env var
-in the compose file). The Docker host must be able to reach the sensor's IP.
-Putting a TLS-terminating reverse proxy in front (e.g. for `https://wc.…`)
-works fine.
+[docker-compose.yml](docker-compose.yml) runs two containers:
+
+- **wc-status-web** — nginx serving the page on port **8080**, proxying
+  `/api/status` to the sensor and `/api/push/*` to the push service
+- **wc-status-push** — Node service ([push/server.js](push/server.js)) that
+  polls the sensor 24/7 and sends the one-shot "WC is free" Web Push;
+  subscriptions persist in the `push-data` volume
+
+Configuration comes from env vars (`WC_DEVICE`, `VAPID_PUBLIC_KEY`,
+`VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` — see [.env.example](.env.example)); in
+Portainer set them as stack environment variables. The Docker host must be
+able to reach the sensor's IP. Putting a TLS-terminating reverse proxy in
+front (e.g. for `https://wc.…`) works fine.
 
 Portainer needs the build context (`web/index.html`), not just the compose
 file, so deploy one of these ways:
