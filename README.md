@@ -63,8 +63,15 @@ Open it straight from disk (double-click, polls the sensor directly — LAN
 only) or host it with the Docker stack below, which also works over **https**:
 nginx proxies `/api/status` to the sensor server-side, so the browser only
 ever talks to the page's own origin (no CORS / mixed-content / local-network
-blocking). Two consecutive missed polls count as "free", so a single dropped
-packet doesn't flicker the status.
+blocking).
+
+False-positive protection (weak WiFi means the sensor sometimes drops a few
+polls in a row): three consecutive missed polls are needed before anything
+reads "free"; nginx micro-caches sensor responses for 2 s so many viewers
+don't overload the ESP8266; and the push service additionally requires the
+state to *stay* free for 8 s before notifying — if the sensor comes back
+mid-window, the push is cancelled and the subscription kept for the genuine
+transition. A false "WC is free" push needs ~17-20 s of unbroken silence.
 
 ### Install as an app (PWA)
 

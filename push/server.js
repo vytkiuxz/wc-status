@@ -11,7 +11,9 @@ const DATA_FILE = process.env.DATA_FILE || "/data/subscriptions.json";
 const PORT = 3000;
 const POLL_MS = 3000;
 const TIMEOUT_MS = 2000;
-const MISSES_FOR_FREE = 2; // same debounce as the web page
+const MISSES_FOR_FREE = 3;      // consecutive failed polls before "free"
+const FREE_CONFIRM_MS = 5000;   // must STAY free this long before pushing —
+                                // a dropped packet or two must never notify
 
 const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
@@ -53,12 +55,26 @@ async function poll() {
   }
 }
 
+let freeConfirmTimer = null;
+
 function setOccupied(next) {
   if (occupied === next) return;
   const was = occupied;
   occupied = next;
   console.log("state:", next ? "occupied" : "free");
-  if (was === true && next === false) notifyAll();
+  if (was === true && next === false) {
+    // Don't push yet: the sensor may just have dropped a few packets (weak
+    // signal). Only notify if it stays free for the whole confirm window.
+    clearTimeout(freeConfirmTimer);
+    freeConfirmTimer = setTimeout(() => {
+      freeConfirmTimer = null;
+      if (!occupied) notifyAll();
+    }, FREE_CONFIRM_MS);
+  } else if (next === true && freeConfirmTimer) {
+    clearTimeout(freeConfirmTimer);
+    freeConfirmTimer = null;
+    console.log("false 'free' suppressed (sensor came back)");
+  }
 }
 
 async function notifyAll() {

@@ -1,3 +1,8 @@
+# Micro-cache for sensor responses: with many viewers polling, the ESP8266
+# (single-threaded, weak signal) gets hammered and starts dropping requests,
+# which looks like "free". With this, at most ~1 request per 2 s reaches it.
+proxy_cache_path /tmp/wc_cache keys_zone=wc:1m max_size=1m;
+
 server {
     listen 80;
 
@@ -16,8 +21,13 @@ server {
     }
 
     # Web Push subscription API, handled by the wc-status-push container.
+    # Resolve via Docker's DNS on each request (with a variable, nginx doesn't
+    # freeze the IP at startup) so a redeploy of just the push container
+    # doesn't leave nginx pointing at a stale address.
     location /api/push/ {
-        proxy_pass http://wc-status-push:3000;
+        resolver ${DNS_RESOLVER} valid=10s;
+        set $push_upstream http://wc-status-push:3000;
+        proxy_pass $push_upstream$request_uri;
     }
 
     # Server-side proxy to the sensor. The browser calls this same-origin
@@ -29,6 +39,10 @@ server {
         # the light is off -> fail quickly with 502/504 (page shows "free").
         proxy_connect_timeout 1s;
         proxy_read_timeout 2s;
+        proxy_cache wc;
+        proxy_cache_valid 200 502 504 2s;
+        proxy_cache_lock on;
+        proxy_cache_use_stale updating timeout;
         add_header Cache-Control no-store;
     }
 }
