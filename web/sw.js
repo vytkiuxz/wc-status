@@ -57,14 +57,20 @@ self.addEventListener("notificationclick", (e) => {
 
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
-  if (e.request.method !== "GET" || url.pathname.includes("/api/")) return; // live data only
+  if (
+    e.request.method !== "GET" ||
+    !url.protocol.startsWith("http") ||   // ignore chrome-extension:// etc.
+    url.pathname.includes("/api/")        // live data only
+  ) return;
 
   // Network-first so page updates land immediately; cache is the offline net.
   e.respondWith(
     fetch(e.request)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(e.request, copy));
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
+        }
         return res;
       })
       .catch(() => caches.match(e.request, { ignoreSearch: true }))
