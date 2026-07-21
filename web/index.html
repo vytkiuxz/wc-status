@@ -436,10 +436,10 @@
   // ---- visits journal (backend mode only) ----
   function fmtClock(ts) {
     const d = new Date(ts), now = new Date();
-    const t = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const t = d.toLocaleTimeString("lt-LT", { hour: "2-digit", minute: "2-digit" });
     return d.toDateString() === now.toDateString()
       ? t
-      : d.toLocaleDateString([], { month: "numeric", day: "numeric" }) + " " + t;
+      : d.toLocaleDateString("lt-LT", { month: "numeric", day: "numeric" }) + " " + t;
   }
 
   async function loadJournal() {
