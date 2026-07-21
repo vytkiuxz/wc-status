@@ -14,7 +14,7 @@ const PORT = 3000;
 const POLL_MS = 3000;
 const TIMEOUT_MS = 2000;
 const MISSES_FOR_FREE = 3;      // consecutive failed polls before "free"
-const FREE_CONFIRM_MS = 5000;   // must STAY free this long before pushing —
+const FREE_CONFIRM_MS = 3000;   // must STAY free this long before pushing —
                                 // a dropped packet or two must never notify
 const JOURNAL_MAX = 500;        // transitions kept on disk
 
