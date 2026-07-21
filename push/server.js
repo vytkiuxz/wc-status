@@ -20,12 +20,20 @@ const JOURNAL_MAX = 500;        // transitions kept on disk
 
 const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:admin@example.com";
+let VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:admin@example.com";
+// web-push requires a URL; a bare email address is the common mistake.
+if (!/^(mailto:|https?:)/.test(VAPID_SUBJECT)) VAPID_SUBJECT = "mailto:" + VAPID_SUBJECT;
 
+// Bad push config must never take down the state/journal endpoints —
+// degrade to push-disabled instead of crash-looping.
 let pushEnabled = false;
 if (VAPID_PUBLIC && VAPID_PRIVATE) {
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
-  pushEnabled = true;
+  try {
+    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
+    pushEnabled = true;
+  } catch (e) {
+    console.error("invalid VAPID config - push disabled:", e.message);
+  }
 } else {
   console.warn("VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY not set - push disabled");
 }
