@@ -2,7 +2,6 @@ services:
   wc-status-web:
     build: ./web
     image: wc-status-web:latest
-    container_name: wc-status-web
     ports:
       - "8080:80"
     environment:
@@ -36,7 +35,6 @@ services:
   wc-status-push:
     build: ./push
     image: wc-status-push:latest
-    container_name: wc-status-push
     restart: unless-stopped
     environment:
       WC_DEVICE: "${WC_DEVICE:-192.168.1.60}"
