@@ -2,8 +2,6 @@ services:
   wc-status-web:
     build: ./web
     image: wc-status-web:latest
-    ports:
-      - "8080:80"
     environment:
       # Sensor address; nginx proxies /api/status to it server-side so the
       # page works from any origin, including https. Set the real value via
@@ -18,16 +16,13 @@ services:
       interval: 30s
       timeout: 3s
       retries: 3
-    # Reverse proxy targets: either http://<docker-host>:8080 (stable, no
-    # extra config), or join the proxy's network and target the container by
-    # name (http://wc-status-web:80). For the latter, uncomment below and set
-    # the network name to the one your proxy stack uses:
-    #
-    #    networks: [default, proxy]
-    #
-    # networks:
-    #   proxy:
-    #     external: true
+    # "default" (the stack's own network) must stay: nginx resolves the push
+    # service by name there — the default bridge has no DNS. "bridge" makes
+    # the container reachable by its 172.17.x.x IP from other bridge
+    # containers/the host.
+    networks:
+      - default
+      - bridge
 
   # Watches the sensor 24/7 and sends the one-shot "WC is free" Web Push to
   # subscribers even when nobody has the page open. Generate VAPID keys once
@@ -43,6 +38,14 @@ services:
       VAPID_SUBJECT: "${VAPID_SUBJECT:-mailto:admin@example.com}"
     volumes:
       - push-data:/data
+    networks:
+      - default
+      - bridge
+
+networks:
+  # The Docker host's pre-existing default bridge network.
+  bridge:
+    external: true
 
 volumes:
   push-data:
