@@ -35,6 +35,7 @@ services:
   wc-status-push:
     build: ./push
     image: wc-status-push:latest
+    container_name: wc-status-push
     restart: unless-stopped
     environment:
       WC_DEVICE: "${WC_DEVICE:-192.168.1.60}"
