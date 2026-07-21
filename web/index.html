@@ -194,6 +194,18 @@
   let deviceUptimeMs = null; // from the sensor: how long the light has been on
   let lastPollAt = null;
 
+  // Red/green tab icon by state. (The installed app's taskbar icon and badge
+  // can't be recolored — the Badging API only supports a number/dot rendered
+  // in the OS's own style — so this is for browser tabs.)
+  const FAVICON_COLORS = { busy: "#ef4444", free: "#22c55e", wait: "#f59e0b" };
+  function setFavicon(color) {
+    $("favicon").href = "data:image/svg+xml," + encodeURIComponent(
+      `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>` +
+      `<circle cx='50' cy='50' r='46' fill='${color}'/>` +
+      `<text x='50' y='66' font-size='44' text-anchor='middle' fill='white' font-family='Segoe UI,sans-serif' font-weight='bold'>WC</text></svg>`
+    );
+  }
+
   function fmtDuration(ms) {
     const s = Math.floor(ms / 1000);
     if (s < 60) return s + "s";
@@ -274,7 +286,7 @@
   });
 
   async function sendFreeNotification() {
-    const opts = { body: "Go go go 🏃", icon: "icons/icon-192.png", tag: "wc-free" };
+    const opts = { body: "Go go go 🏃", icon: "icons/icon-192.png", tag: "wc-free", renotify: true };
     try {
       if (swReg) await swReg.showNotification("🟢 WC is free!", opts);
       else new Notification("🟢 WC is free!", opts);
@@ -318,6 +330,7 @@
       $("detail").textContent = "contacting the sensor";
       document.title = "WC Status";
     }
+    setFavicon(FAVICON_COLORS[state] || FAVICON_COLORS.wait);
     renderNotifyBtn();
   }
 
