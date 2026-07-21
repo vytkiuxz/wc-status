@@ -2,6 +2,8 @@ services:
   wc-status-web:
     build: ./web
     image: wc-status-web:latest
+    ports:
+      - "80:80"
     environment:
       # Sensor address; nginx proxies /api/status to it server-side so the
       # page works from any origin, including https. Set the real value via
