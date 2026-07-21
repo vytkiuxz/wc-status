@@ -20,14 +20,15 @@ server {
         default_type application/manifest+json;
     }
 
-    # Web Push subscription API, handled by the wc-status-push container.
-    # Resolve via Docker's DNS on each request (with a variable, nginx doesn't
-    # freeze the IP at startup) so a redeploy of just the push container
-    # doesn't leave nginx pointing at a stale address.
-    location /api/push/ {
+    # Push API + occupancy state/journal, handled by the wc-status-push
+    # container. Resolve via Docker's DNS on each request (with a variable,
+    # nginx doesn't freeze the IP at startup) so a redeploy of just the push
+    # container doesn't leave nginx pointing at a stale address.
+    location ~ ^/api/(push/|state$|journal$) {
         resolver ${DNS_RESOLVER} valid=10s;
         set $push_upstream http://wc-status-push:3000;
         proxy_pass $push_upstream$request_uri;
+        add_header Cache-Control no-store;
     }
 
     # Server-side proxy to the sensor. The browser calls this same-origin

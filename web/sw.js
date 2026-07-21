@@ -1,6 +1,6 @@
 // Minimal service worker: makes the page installable as a PWA and keeps the
 // app shell available offline. /api/status is never cached — live data only.
-const CACHE = "wc-status-v3";
+const CACHE = "wc-status-v4";
 const SHELL = [
   "./",
   "manifest.webmanifest",
@@ -57,7 +57,7 @@ self.addEventListener("notificationclick", (e) => {
 
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
-  if (e.request.method !== "GET" || url.pathname.endsWith("/api/status")) return;
+  if (e.request.method !== "GET" || url.pathname.includes("/api/")) return; // live data only
 
   // Network-first so page updates land immediately; cache is the offline net.
   e.respondWith(

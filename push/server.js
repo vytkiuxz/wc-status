@@ -1,4 +1,5 @@
-// WC-STATUS push service: polls the sensor server-side, and when the WC goes
+// WC-STATUS push service: polls the sensor server-side, tracks occupancy
+// state + transition times, keeps a journal, and when the WC goes
 // occupied -> free, sends a one-shot Web Push to everyone who asked to be
 // notified. Subscriptions are cleared after firing (no notification spam).
 const http = require("http");
@@ -8,12 +9,14 @@ const webpush = require("web-push");
 
 const DEVICE = process.env.WC_DEVICE || "192.168.1.60";
 const DATA_FILE = process.env.DATA_FILE || "/data/subscriptions.json";
+const JOURNAL_FILE = process.env.JOURNAL_FILE || "/data/journal.json";
 const PORT = 3000;
 const POLL_MS = 3000;
 const TIMEOUT_MS = 2000;
 const MISSES_FOR_FREE = 3;      // consecutive failed polls before "free"
 const FREE_CONFIRM_MS = 5000;   // must STAY free this long before pushing —
                                 // a dropped packet or two must never notify
+const JOURNAL_MAX = 500;        // transitions kept on disk
 
 const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
@@ -27,32 +30,56 @@ if (VAPID_PUBLIC && VAPID_PRIVATE) {
   console.warn("VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY not set - push disabled");
 }
 
-// ---- subscription store (survives restarts via the /data volume) ----
+// ---- persistence (survives restarts via the /data volume) ----
 let subs = [];
 try { subs = JSON.parse(fs.readFileSync(DATA_FILE, "utf8")); } catch { /* first run */ }
-function save() {
+let journal = []; // [{ts, event: "occupied"|"free"}]
+try { journal = JSON.parse(fs.readFileSync(JOURNAL_FILE, "utf8")); } catch { /* first run */ }
+
+function persist(file, data) {
   try {
-    fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-    fs.writeFileSync(DATA_FILE, JSON.stringify(subs));
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(data));
   } catch (e) {
-    console.error("failed to persist subscriptions:", e.message);
+    console.error(`failed to persist ${file}:`, e.message);
   }
 }
+const save = () => persist(DATA_FILE, subs);
+const saveJournal = () => persist(JOURNAL_FILE, journal);
 
 // ---- sensor poller ----
-let occupied = null; // null = unknown (just started)
+let occupied = null;     // null = unknown (just started)
+let stateSince = null;   // epoch ms when the current state actually began
 let misses = 0;
+let lastOkTs = null;     // last successful sensor response
+let lastStatus = null;   // last sensor JSON ({uptime_ms, rssi, ...})
 
 async function poll() {
   try {
     const res = await fetch(`http://${DEVICE}/status`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok) throw new Error("http " + res.status);
-    await res.json();
+    lastStatus = await res.json();
+    lastOkTs = Date.now();
     misses = 0;
     setOccupied(true);
   } catch {
     if (++misses >= MISSES_FOR_FREE) setOccupied(false);
   }
+}
+
+// Record a transition. Skips duplicates (e.g. service restart mid-occupancy
+// re-detects "occupied") by adopting the existing entry's timestamp instead.
+function journalize(event, ts) {
+  const last = journal[journal.length - 1];
+  if (last && last.event === event) {
+    stateSince = last.ts;
+    return;
+  }
+  if (last && ts <= last.ts) ts = last.ts + 1000; // keep timestamps monotonic
+  stateSince = ts;
+  journal.push({ ts, event });
+  if (journal.length > JOURNAL_MAX) journal = journal.slice(-JOURNAL_MAX);
+  saveJournal();
 }
 
 let freeConfirmTimer = null;
@@ -62,18 +89,32 @@ function setOccupied(next) {
   const was = occupied;
   occupied = next;
   console.log("state:", next ? "occupied" : "free");
-  if (was === true && next === false) {
-    // Don't push yet: the sensor may just have dropped a few packets (weak
-    // signal). Only notify if it stays free for the whole confirm window.
-    clearTimeout(freeConfirmTimer);
-    freeConfirmTimer = setTimeout(() => {
+
+  if (next === true) {
+    if (freeConfirmTimer) {
+      // The "free" was sensor packet loss, not a real transition: cancel the
+      // pending push and erase the spurious journal entry.
+      clearTimeout(freeConfirmTimer);
       freeConfirmTimer = null;
-      if (!occupied) notifyAll();
-    }, FREE_CONFIRM_MS);
-  } else if (next === true && freeConfirmTimer) {
-    clearTimeout(freeConfirmTimer);
-    freeConfirmTimer = null;
-    console.log("false 'free' suppressed (sensor came back)");
+      const last = journal[journal.length - 1];
+      if (last && last.event === "free") { journal.pop(); saveJournal(); }
+      const prev = journal[journal.length - 1];
+      stateSince = prev ? prev.ts : Date.now();
+      console.log("false 'free' suppressed (sensor came back)");
+      return;
+    }
+    // Device uptime = time since the light switched on: the true start.
+    const bootTs = lastStatus ? Date.now() - lastStatus.uptime_ms : Date.now();
+    journalize("occupied", bootTs);
+  } else {
+    // The light went off just after the last answer we got.
+    journalize("free", lastOkTs || Date.now());
+    if (was === true) {
+      freeConfirmTimer = setTimeout(() => {
+        freeConfirmTimer = null;
+        if (!occupied) notifyAll();
+      }, FREE_CONFIRM_MS);
+    }
   }
 }
 
@@ -99,12 +140,25 @@ async function notifyAll() {
 setInterval(poll, POLL_MS);
 poll();
 
-// ---- http api (reached via nginx at /api/push/*) ----
+// ---- http api (reached via nginx at /api/*) ----
 const server = http.createServer((req, res) => {
   const send = (code, obj) => {
     res.writeHead(code, { "Content-Type": "application/json" });
     res.end(JSON.stringify(obj));
   };
+
+  if (req.method === "GET" && req.url === "/api/state") {
+    return send(200, {
+      occupied,
+      since: stateSince,
+      now: Date.now(), // lets clients correct for clock skew
+      rssi: occupied && lastStatus ? lastStatus.rssi : null,
+    });
+  }
+
+  if (req.method === "GET" && req.url === "/api/journal") {
+    return send(200, { events: journal.slice(-100), now: Date.now() });
+  }
 
   if (req.method === "GET" && req.url === "/api/push/key") {
     return pushEnabled ? send(200, { key: VAPID_PUBLIC }) : send(503, { error: "push disabled" });
