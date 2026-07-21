@@ -16,13 +16,18 @@ services:
       interval: 30s
       timeout: 3s
       retries: 3
-    # "default" (the stack's own network) must stay: nginx resolves the push
-    # service by name there — the default bridge has no DNS. "bridge" makes
-    # the container reachable by its 172.17.x.x IP from other bridge
-    # containers/the host.
-    networks:
-      - default
-      - bridge
+    # NOTE: joining the default "bridge" network is not possible from a
+    # compose stack (Docker: "network-scoped alias is supported only for
+    # containers in user defined networks"). To let a reverse proxy container
+    # reach this service, either target http://<docker-host>:8080, or share a
+    # user-defined network with the proxy and target http://wc-status-web:80
+    # by uncommenting below (set "proxy" to the network your proxy stack uses):
+    #
+    #    networks: [default, proxy]
+    #
+    # networks:
+    #   proxy:
+    #     external: true
 
   # Watches the sensor 24/7 and sends the one-shot "WC is free" Web Push to
   # subscribers even when nobody has the page open. Generate VAPID keys once
@@ -38,14 +43,6 @@ services:
       VAPID_SUBJECT: "${VAPID_SUBJECT:-mailto:admin@example.com}"
     volumes:
       - push-data:/data
-    networks:
-      - default
-      - bridge
-
-networks:
-  # The Docker host's pre-existing default bridge network.
-  bridge:
-    external: true
 
 volumes:
   push-data:
