@@ -180,6 +180,7 @@
     opacity: .85;
     font-variant-numeric: tabular-nums;
   }
+  .jt2 { margin-top: 18px; }
 
   /* Emoji confetti when it becomes free */
   .confetti {
@@ -481,11 +482,33 @@
       stats = `<div class='jstats'>today · ⚡ fastest ${fmtDuration(Math.min(...durs))} · 🐢 longest ${fmtDuration(Math.max(...durs))}</div>`;
     }
 
+    // Total time in use per work day (Mon-Fri), last 5 days with data.
+    // Ongoing visit counts up to "now"; a visit is attributed to its start day.
+    const byDay = new Map();
+    for (const v of visits) {
+      const d = new Date(v.start);
+      const dow = d.getDay();
+      if (dow === 0 || dow === 6) continue; // skip weekends
+      const key = d.toDateString();
+      const agg = byDay.get(key) || { ts: v.start, total: 0, count: 0 };
+      agg.total += (v.end || Date.now()) - v.start;
+      agg.count++;
+      byDay.set(key, agg);
+    }
+    const days = [...byDay.values()].sort((a, b) => b.ts - a.ts).slice(0, 5);
+    const daily = !days.length ? "" :
+      "<div class='jtitle jt2'>In use per day</div>" + days.map((agg) => {
+        const d = new Date(agg.ts);
+        const label = d.toDateString() === today ? "today" :
+          d.toLocaleDateString("lt-LT", { weekday: "short", month: "numeric", day: "numeric" });
+        return `<div class='jrow'><span>${label}</span><span>${fmtDuration(agg.total)} · ${agg.count}×</span></div>`;
+      }).join("");
+
     $("journal").innerHTML = !rows.length ? "" :
       "<div class='jtitle'>Recent visits</div>" + rows.map((v) =>
         `<div class='jrow'><span>🚽 ${fmtClock(v.start)}</span><span>${
           v.end ? fmtClock(v.end) + " · " + fmtDuration(v.end - v.start) : "ongoing…"
-        }</span></div>`).join("") + stats;
+        }</span></div>`).join("") + stats + daily;
   }
 
   poll();

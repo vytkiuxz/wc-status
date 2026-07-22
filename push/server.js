@@ -16,7 +16,7 @@ const TIMEOUT_MS = 2000;
 const MISSES_FOR_FREE = 3;      // consecutive failed polls before "free"
 const FREE_CONFIRM_MS = 3000;   // must STAY free this long before pushing —
                                 // a dropped packet or two must never notify
-const JOURNAL_MAX = 500;        // transitions kept on disk
+const JOURNAL_MAX = 4000;       // transitions kept on disk (~2 weeks of a busy office)
 
 const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
@@ -165,7 +165,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === "GET" && req.url === "/api/journal") {
-    return send(200, { events: journal.slice(-200), now: Date.now() });
+    return send(200, { events: journal.slice(-1000), now: Date.now() });
   }
 
   if (req.method === "GET" && req.url === "/api/push/key") {
