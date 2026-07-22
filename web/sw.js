@@ -1,6 +1,6 @@
 // Minimal service worker: makes the page installable as a PWA and keeps the
 // app shell available offline. /api/status is never cached — live data only.
-const CACHE = "wc-status-v5";
+const CACHE = "wc-status-v6";
 const SHELL = [
   "./",
   "manifest.webmanifest",
