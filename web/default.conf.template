@@ -26,7 +26,7 @@ server {
     # container doesn't leave nginx pointing at a stale address.
     location ~ ^/api/(push/|state$|journal$) {
         resolver ${DNS_RESOLVER} valid=10s;
-        set $push_upstream http://wc-status-push:3000;
+        set $push_upstream http://${PUSH_HOST}:3000;
         proxy_pass $push_upstream$request_uri;
         add_header Cache-Control no-store;
     }

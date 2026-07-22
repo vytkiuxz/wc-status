@@ -1,9 +1,13 @@
+# To run several stacks (prod + test) on one host, give each a unique
+# STACK_PREFIX (e.g. "wc" and "test-wc") in the stack's env vars — it prefixes
+# container names and image tags so nothing collides.
 services:
   wc-status-web:
     build: ./web
-    image: wc-status-web:latest
+    image: "${STACK_PREFIX:-wc}-status-web:latest"
+    container_name: "${STACK_PREFIX:-wc}-status-web"
     ports:
-      - "8080:80"
+      - "${WEB_PORT:-8080}:80"
     environment:
       # Sensor address; nginx proxies /api/status to it server-side so the
       # page works from any origin, including https. Set the real value via
@@ -13,6 +17,9 @@ services:
       # In-container DNS used to re-resolve the push service on each request.
       # 127.0.0.11 is Docker's embedded DNS — override only on Podman etc.
       DNS_RESOLVER: "${DNS_RESOLVER:-127.0.0.11}"
+      # Hostname nginx proxies /api/push|state|journal to — must match the
+      # push container's name so each stack talks to its own push service.
+      PUSH_HOST: "${STACK_PREFIX:-wc}-status-push"
     restart: unless-stopped
     depends_on:
       - wc-status-push
@@ -25,8 +32,9 @@ services:
     # compose stack (Docker: "network-scoped alias is supported only for
     # containers in user defined networks"). To let a reverse proxy container
     # reach this service, either target http://<docker-host>:8080, or share a
-    # user-defined network with the proxy and target http://wc-status-web:80
-    # by uncommenting below (set "proxy" to the network your proxy stack uses):
+    # user-defined network with the proxy and target the container name
+    # (http://wc-status-web:80) by uncommenting below (set "proxy" to the
+    # network your proxy stack uses):
     #
     #    networks: [default, proxy]
     #
@@ -39,8 +47,8 @@ services:
   # (e.g. `npx web-push generate-vapid-keys`) and provide them via env vars.
   wc-status-push:
     build: ./push
-    image: wc-status-push:latest
-    container_name: wc-status-push
+    image: "${STACK_PREFIX:-wc}-status-push:latest"
+    container_name: "${STACK_PREFIX:-wc}-status-push"
     restart: unless-stopped
     environment:
       WC_DEVICE: "${WC_DEVICE:-192.168.1.60}"
