@@ -165,7 +165,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === "GET" && req.url === "/api/journal") {
-    return send(200, { events: journal.slice(-1000), now: Date.now() });
+    return send(200, { events: journal.slice(-JOURNAL_MAX), now: Date.now() });
   }
 
   if (req.method === "GET" && req.url === "/api/push/key") {

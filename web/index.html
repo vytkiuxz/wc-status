@@ -36,7 +36,7 @@
     }
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { height: 100%; }
+  html, body { min-height: 100%; }
   body {
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     background: var(--bg);
@@ -44,10 +44,26 @@
     display: grid;
     place-items: center;
     transition: background .8s ease;
-    overflow: hidden;
+    overflow: auto;
+    padding: 24px;
   }
   body.free    { background: color-mix(in srgb, var(--free) 14%, var(--bg)); }
   body.busy    { background: color-mix(in srgb, var(--busy) 14%, var(--bg)); }
+
+  .app-shell {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 0;
+    width: min(92vw, 420px);
+    transition:
+      width .78s cubic-bezier(.22, 1, .36, 1),
+      gap .78s cubic-bezier(.22, 1, .36, 1);
+  }
+  .app-shell.nerd-open {
+    gap: 18px;
+    width: min(96vw, 1281px);
+  }
 
   .card {
     background: var(--card);
@@ -55,7 +71,9 @@
     box-shadow: var(--shadow);
     padding: 48px 56px;
     text-align: center;
-    width: min(92vw, 420px);
+    width: 100%;
+    min-width: 0;
+    flex: 0 0 420px;
     position: relative;
   }
 
@@ -77,8 +95,51 @@
     place-items: center;
     font-size: 72px;
     background: var(--wait-soft);
-    transition: background .5s ease, box-shadow .5s ease;
+    transition: background .5s ease, box-shadow .5s ease, transform .16s ease;
     user-select: none;
+    position: relative;
+    overflow: hidden;
+    border: 0;
+    color: inherit;
+    font-family: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .light:active { transform: scale(.955); }
+  .light:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--muted) 35%, transparent);
+    outline-offset: 5px;
+  }
+  #lightEmoji {
+    position: relative;
+    z-index: 1;
+    display: block;
+    pointer-events: none;
+  }
+  .light-tap #lightEmoji {
+    animation: light-pop .42s cubic-bezier(.2, .9, .25, 1);
+  }
+  @keyframes light-pop {
+    0% { transform: scale(1); }
+    28% { transform: scale(.84); }
+    62% { transform: scale(1.09); }
+    100% { transform: scale(1); }
+  }
+  .light-ripple {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+    background: color-mix(in srgb, var(--text) 30%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 8%, transparent);
+    transform: translate(-50%, -50%) scale(0);
+    animation: light-ripple .72s cubic-bezier(.2, .7, .2, 1) forwards;
+  }
+  @keyframes light-ripple {
+    65% { opacity: .55; }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(9); }
   }
   .free .light {
     background: var(--free-soft);
@@ -182,6 +243,100 @@
   }
   .jt2 { margin-top: 18px; }
 
+  .nerd-drawer {
+    width: 0;
+    min-width: 0;
+    max-height: 0;
+    flex: 0 1 0;
+    overflow: hidden;
+    border-radius: 28px;
+    background: var(--card);
+    box-shadow: var(--shadow);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(-22px) scale(.98);
+    transform-origin: left center;
+    transition:
+      opacity .42s ease,
+      transform .78s cubic-bezier(.22, 1, .36, 1),
+      flex-basis .78s cubic-bezier(.22, 1, .36, 1),
+      max-height .78s cubic-bezier(.22, 1, .36, 1),
+      visibility 0s linear .78s;
+  }
+  .nerd-open .nerd-drawer {
+    width: auto;
+    max-height: 1200px;
+    flex-basis: 843px;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateX(0) scale(1);
+    transition-delay: 0s;
+  }
+  .nerd-panel {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+    border-radius: inherit;
+    padding: 30px;
+  }
+  .nerd-range {
+    display: block;
+    margin-bottom: 10px;
+    text-align: left;
+    font-size: 11px;
+    color: var(--muted);
+    opacity: .7;
+  }
+  .heatmap {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+  .heatmap-legend {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 10px;
+    opacity: .75;
+  }
+  .heatmap-swatch {
+    width: 22px;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--busy);
+  }
+
+  @media (max-width: 1100px) {
+    body { padding: 14px; }
+    .app-shell,
+    .app-shell.nerd-open {
+      flex-direction: column;
+      width: min(94vw, 480px);
+    }
+    .app-shell.nerd-open { gap: 14px; }
+    .nerd-drawer { transform: translateY(-18px) scale(.98); }
+    .nerd-open .nerd-drawer {
+      width: 100%;
+      flex-basis: auto;
+      transform: translateY(0) scale(1);
+    }
+    .card { flex-basis: auto; padding: 42px 30px; }
+    .nerd-panel { padding: 24px 18px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-shell, .nerd-drawer, .light { transition: none; }
+    .light-ripple { animation-duration: .01ms; }
+    .light-tap #lightEmoji { animation-duration: .01ms; }
+  }
+
   /* Emoji confetti when it becomes free */
   .confetti {
     position: fixed;
@@ -197,15 +352,26 @@
 </style>
 </head>
 <body class="wait">
-  <main class="card">
-    <div class="title">WC Status</div>
-    <div class="light" id="light">⏳</div>
-    <div class="status" id="status">Checking…</div>
-    <div class="detail" id="detail">contacting the sensor</div>
-    <div class="foot"><span class="dot" id="dot"></span><span id="foot">connecting…</span></div>
-    <button class="notify" id="notifyBtn" hidden>🔔 Notify me when it's free</button>
-    <div class="journal" id="journal"></div>
-  </main>
+  <div class="app-shell" id="appShell">
+    <main class="card">
+      <div class="title">WC Status</div>
+      <button class="light" id="light" type="button" aria-expanded="false" aria-controls="nerdPanel" aria-label="Show 30-day occupancy heatmap">
+        <span id="lightEmoji" aria-hidden="true">⏳</span>
+      </button>
+      <div class="status" id="status">Checking…</div>
+      <div class="detail" id="detail">contacting the sensor</div>
+      <div class="foot"><span class="dot" id="dot"></span><span id="foot">connecting…</span></div>
+      <button class="notify" id="notifyBtn" hidden>🔔 Notify me when it's free</button>
+      <div class="journal" id="journal"></div>
+    </main>
+    <aside class="nerd-drawer" id="nerdPanel" aria-hidden="true">
+      <section class="nerd-panel" aria-label="30-day occupancy heatmap">
+        <span class="nerd-range">Last 30 days</span>
+        <canvas class="heatmap" id="heatmap" role="img" aria-label="WC occupancy heatmap for the last 30 days, from midnight to midnight"></canvas>
+        <div class="heatmap-legend"><span class="heatmap-swatch"></span><span>occupied</span></div>
+      </section>
+    </aside>
+  </div>
 
 <script>
   // Served by the nginx container -> poll the backend (api/state), which
@@ -225,6 +391,7 @@
   let sinceMs = null;        // client-side timestamp of the last state change
   let deviceUptimeMs = null; // from the sensor: how long the light has been on
   let lastPollAt = null;
+  let journalVisits = [];
 
   // Red/green tab icon by state. (The installed app's taskbar icon and badge
   // can't be recolored — the Badging API only supports a number/dot rendered
@@ -268,6 +435,41 @@
   let notifyArmed = false;
   let pushArmed = false;
   const notifyBtn = $("notifyBtn");
+  const appShell = $("appShell");
+  const lightBtn = $("light");
+  const statusCard = document.querySelector(".card");
+  const nerdPanel = $("nerdPanel");
+
+  function syncNerdPanelHeight() {
+    nerdPanel.style.height = statusCard.getBoundingClientRect().height + "px";
+  }
+
+  function toggleNerdPanel(event) {
+    const rect = lightBtn.getBoundingClientRect();
+    lightBtn.classList.remove("light-tap");
+    void lightBtn.offsetWidth;
+    lightBtn.classList.add("light-tap");
+    setTimeout(() => lightBtn.classList.remove("light-tap"), 450);
+
+    const ripple = document.createElement("span");
+    ripple.className = "light-ripple";
+    ripple.style.left = (event.clientX ? event.clientX - rect.left : rect.width / 2) + "px";
+    ripple.style.top = (event.clientY ? event.clientY - rect.top : rect.height / 2) + "px";
+    lightBtn.appendChild(ripple);
+    ripple.addEventListener("animationend", () => ripple.remove(), { once: true });
+
+    const open = appShell.classList.toggle("nerd-open");
+    lightBtn.setAttribute("aria-expanded", String(open));
+    lightBtn.setAttribute("aria-label", (open ? "Hide" : "Show") + " 30-day occupancy heatmap");
+    nerdPanel.setAttribute("aria-hidden", String(!open));
+    if (open) {
+      syncNerdPanelHeight();
+      requestAnimationFrame(drawHeatmap);
+      setTimeout(drawHeatmap, 820);
+    }
+  }
+
+  lightBtn.addEventListener("click", toggleNerdPanel);
 
   function canNotify() {
     return "Notification" in window && Notification.permission !== "denied";
@@ -345,7 +547,7 @@
   function render() {
     const now = Date.now();
     if (state === "busy") {
-      $("light").textContent = "🚽";
+      $("lightEmoji").textContent = "🚽";
       $("status").textContent = "Occupied";
       const held = deviceUptimeMs != null
         ? deviceUptimeMs + (lastPollAt ? now - lastPollAt : 0)
@@ -353,12 +555,12 @@
       $("detail").textContent = "for " + fmtDuration(held) + " — hold on 😅";
       document.title = "🔴 Occupied — WC";
     } else if (state === "free") {
-      $("light").textContent = "🚪";
+      $("lightEmoji").textContent = "🚪";
       $("status").textContent = "Free!";
       $("detail").textContent = sinceMs ? "free for " + fmtDuration(now - sinceMs) + " — go go go 🏃" : "go go go 🏃";
       document.title = "🟢 Free — WC";
     } else {
-      $("light").textContent = "⏳";
+      $("lightEmoji").textContent = "⏳";
       $("status").textContent = "Checking…";
       $("detail").textContent = "contacting the sensor";
       document.title = "WC Status";
@@ -472,6 +674,8 @@
       });
     }
     const rows = visits.slice(-6).reverse();
+    journalVisits = visits;
+    drawHeatmap();
 
     // Fun stat of the day: fastest and longest completed visit.
     const today = new Date().toDateString();
@@ -509,6 +713,119 @@
         `<div class='jrow'><span>🚽 ${fmtClock(v.start)}</span><span>${
           v.end ? fmtClock(v.end) + " · " + fmtDuration(v.end - v.start) : "ongoing…"
         }</span></div>`).join("") + stats + daily;
+  }
+
+  function localDateKey(value) {
+    const date = new Date(value);
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0"),
+    ].join("-");
+  }
+
+  function drawHeatmap() {
+    if (!appShell.classList.contains("nerd-open")) return;
+    const canvas = $("heatmap");
+    const width = Math.floor(canvas.getBoundingClientRect().width);
+    const height = Math.floor(canvas.getBoundingClientRect().height);
+    if (!width || !height) return;
+
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(width * pixelRatio);
+    canvas.height = Math.round(height * pixelRatio);
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+
+    const left = 28;
+    const right = 4;
+    const top = 8;
+    const bottom = 28;
+    const columnCount = 30;
+    const dayMs = 24 * 60 * 60 * 1000;
+    const plotWidth = width - left - right;
+    const plotHeight = height - top - bottom;
+    const columnWidth = plotWidth / columnCount;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = Array.from({ length: columnCount }, (_, index) => {
+      const day = new Date(today);
+      day.setDate(today.getDate() - (columnCount - 1 - index));
+      return day;
+    });
+    const dayColumns = new Map(days.map((day, index) => [localDateKey(day), index]));
+    const muted = getComputedStyle(document.documentElement).getPropertyValue("--muted").trim();
+
+    ctx.strokeStyle = "rgba(122, 130, 140, .1)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let column = 0; column <= columnCount; column++) {
+      const x = left + (column * columnWidth);
+      ctx.moveTo(x, top);
+      ctx.lineTo(x, top + plotHeight);
+    }
+    for (const hour of [0, 6, 12, 18, 24]) {
+      const y = top + plotHeight - ((hour / 24) * plotHeight);
+      ctx.moveTo(left, y);
+      ctx.lineTo(left + plotWidth, y);
+    }
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(239, 68, 68, .86)";
+    for (const visit of journalVisits) {
+      const column = dayColumns.get(localDateKey(visit.start));
+      if (column == null) continue;
+      const dayStart = new Date(visit.start);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = dayStart.getTime() + dayMs;
+      const intervalStart = Math.max(visit.start, dayStart.getTime());
+      const intervalEnd = Math.min(visit.end || Date.now(), dayEnd);
+      if (intervalEnd <= intervalStart) continue;
+
+      const intervalHeight = ((intervalEnd - intervalStart) / dayMs) * plotHeight;
+      const y = top + plotHeight - (((intervalEnd - dayStart.getTime()) / dayMs) * plotHeight);
+      ctx.fillRect(
+        left + (column * columnWidth) + 1,
+        y,
+        Math.max(1, columnWidth - 2),
+        intervalHeight
+      );
+    }
+
+    ctx.fillStyle = muted;
+    ctx.font = "10px Segoe UI, system-ui, sans-serif";
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "left";
+    ctx.fillText("00", 2, top + 3);
+    ctx.fillText("18", 2, top + (plotHeight * .25));
+    ctx.fillText("12", 2, top + (plotHeight * .5));
+    ctx.fillText("06", 2, top + (plotHeight * .75));
+    ctx.fillText("00", 2, top + plotHeight - 2);
+
+    ctx.textBaseline = "bottom";
+    for (const column of [0, 7, 14, 21, 29]) {
+      const isFirst = column === 0;
+      const isLast = column === columnCount - 1;
+      ctx.textAlign = isFirst ? "left" : isLast ? "right" : "center";
+      const x = isFirst
+        ? left
+        : isLast
+          ? width - right
+          : left + ((column + .5) * columnWidth);
+      ctx.fillText(
+        days[column].toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
+        x,
+        height - 2
+      );
+    }
+  }
+
+  if ("ResizeObserver" in window) {
+    new ResizeObserver(drawHeatmap).observe($("heatmap"));
+    new ResizeObserver(() => {
+      if (appShell.classList.contains("nerd-open")) syncNerdPanelHeight();
+    }).observe(statusCard);
   }
 
   poll();
