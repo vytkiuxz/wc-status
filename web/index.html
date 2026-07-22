@@ -173,6 +173,13 @@
     border-top: 1px solid color-mix(in srgb, var(--muted) 18%, transparent);
     font-variant-numeric: tabular-nums;
   }
+  .jstats {
+    margin-top: 10px;
+    text-align: center;
+    font-size: 12px;
+    opacity: .85;
+    font-variant-numeric: tabular-nums;
+  }
 
   /* Emoji confetti when it becomes free */
   .confetti {
@@ -464,11 +471,21 @@
       });
     }
     const rows = visits.slice(-6).reverse();
+
+    // Fun stat of the day: fastest and longest completed visit.
+    const today = new Date().toDateString();
+    const doneToday = visits.filter((v) => v.end && new Date(v.start).toDateString() === today);
+    let stats = "";
+    if (doneToday.length >= 2) {
+      const durs = doneToday.map((v) => v.end - v.start);
+      stats = `<div class='jstats'>today · ⚡ fastest ${fmtDuration(Math.min(...durs))} · 🐢 longest ${fmtDuration(Math.max(...durs))}</div>`;
+    }
+
     $("journal").innerHTML = !rows.length ? "" :
       "<div class='jtitle'>Recent visits</div>" + rows.map((v) =>
         `<div class='jrow'><span>🚽 ${fmtClock(v.start)}</span><span>${
           v.end ? fmtClock(v.end) + " · " + fmtDuration(v.end - v.start) : "ongoing…"
-        }</span></div>`).join("");
+        }</span></div>`).join("") + stats;
   }
 
   poll();
